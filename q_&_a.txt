@@ -1,0 +1,29 @@
+1. Q: How can I add a new task to my to-do list?
+A: Go to the homepage, type the task name in the input box, and click the Add button. The new task will appear in your list.
+
+2. Q: How do I mark a task as completed?
+A: Click the Complete button next to the task you want to mark as done. If you click it again, it will unmark the task.
+
+3. Q: How can I delete a task from my list?
+A: Click the Delete button next to the task you want to remove. It will disappear from your list permanently.
+
+4. Q: Can I edit the name of a task after adding it?
+A: No, this version of the app does not support editing task names. You can delete the task and add a new one with the correct name.
+
+5. Q: What does the checkbox or “Complete” status mean?
+A: It shows whether the task is finished. If marked as complete, the task is done; if not, it’s still pending.
+
+6. Q: Do I need to refresh the page after adding or completing a task?
+A: No, the app automatically updates the list after you add, complete, or delete a task.
+
+7. Q: Can I add multiple tasks at once?
+A: No, you can only add one task at a time using the input box.
+
+8. Q: Will my tasks stay saved if I close the app?
+A: Yes, your tasks are stored in a database, so they will still be there when you reopen the app.
+
+9. Q: Is there a way to see only completed tasks?
+A: No, this version of the app shows all tasks together. There is no filter option yet.
+
+10. Q: What happens if I click “Complete” on a task that is already completed?
+A: It will unmark the task, making it pending again.
