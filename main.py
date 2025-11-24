@@ -290,8 +290,5 @@ def generate_audio():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    print("Starting Combined Todo App with Voice Bot...")
-    print(f"Loaded {len(qa_pairs)} Q&A pairs")
-    print("Web interface available at: http://127.0.0.1:5000/")
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    main()
 
