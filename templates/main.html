@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <title>Todo App with Voice Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            min-height: 100vh;
+            padding-bottom: 400px; /* Space for voice bot */
+        }
+        
+        /* Todo List Container - Centered */
+        .todo-container {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        /* Voice Bot Container - Fixed Bottom Right */
+        .voice-bot-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 400px;
+            max-height: 500px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            padding: 20px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .voice-bot-header {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+            font-size: 18px;
+        }
+        
+        .greeting {
+            background-color: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        
+        .transcription {
+            background-color: #fff3e0;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            min-height: 40px;
+            font-size: 13px;
+        }
+        
+        .response {
+            background-color: #f1f8e9;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            min-height: 40px;
+            font-size: 13px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
+        .status.listening {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status.recording {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        
+        .status.processing {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+        
+        .label {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        audio {
+            width: 100%;
+            margin-top: 10px;
+            height: 30px;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .voice-bot-container {
+                width: 350px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .voice-bot-container {
+                width: 300px;
+                bottom: 10px;
+                right: 10px;
+                max-height: 400px;
+            }
+            
+            .todo-container {
+                margin: 20px;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Todo List - Centered -->
+    <div class="todo-container">
+        <h3>Todo List</h3>
+        <hr>
+
+        <form action="/add" method="post">
+            <div class="form-group">
+                <label for="formGroupExampleInput">Todo Başlık</label>
+                <input type="text" class="form-control" name="title" id="formGroupExampleInput" placeholder="Todo Giriniz..."><br>
+                <button type="submit" class="btn btn-danger">Ekle</button>
+            </div>
+            <hr>
+        </form>
+        
+        {% if todos == [] %}
+        <div class="alert alert-warning" role="alert">
+            Herhangi bir todonuz bulunmuyor...
+        </div>
+        {% else %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">id</th>
+                    <th scope="col">Todo Başlık</th>
+                    <th scope="col">Todo Durum</th>
+                    <th scope="col">Durum Güncelle</th>
+                    <th scope="col">Todo Sil</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for todo in todos %}
+                <tr>
+                    <th scope="row">{{todo.id}}</th>
+                    <td>{{todo.title}}</td>
+                    {% if todo.complete == False %}
+                    <td>Tamamlanmadı</td>
+                    {% else %}
+                    <td>Tamamlandı</td>
+                    {% endif %}
+                    
+                    <td><a href="/complete/{{todo.id}}" class="btn btn-danger">Tamamla</a></td>
+                    <td><a href="/delete/{{todo.id}}" class="btn btn-danger">Sil</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+    <!-- Voice Bot - Bottom Right -->
+    <div class="voice-bot-container">
+        <div class="voice-bot-header">🎤 Voice Assistant</div>
+        
+        <div class="greeting" id="greeting">
+            <p style="margin: 0; font-size: 12px;">Hello! I'm your Q&A assistant for the to-do list app. Ask me anything about how to use the app!</p>
+        </div>
+        
+        <div class="status listening" id="status">
+            <div id="statusText" style="font-size: 11px;">🎤 Listening... Speak your question when ready.</div>
+        </div>
+        
+        <div class="transcription">
+            <div class="label">Your Question:</div>
+            <div id="transcription" style="font-size: 12px;">Waiting for your question...</div>
+        </div>
+        
+        <div class="response">
+            <div class="label">Bot Response:</div>
+            <div id="response" style="font-size: 12px;">Waiting for your question...</div>
+            <audio id="responseAudio" controls style="display: none;"></audio>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    
+    <script>
+        let audioContext;
+        let analyser;
+        let microphone;
+        let dataArray;
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let isProcessing = false;
+        let greetingPlayed = false;
+        let recordingStream = null;
+        
+        // Voice Activity Detection (VAD) parameters
+        const SPEECH_THRESHOLD = 20;
+        const SILENCE_DURATION = 1500;
+        const DETECTION_INTERVAL = 50;
+        const LOG_INTERVAL = 500;
+        
+        let speechDetected = false;
+        let silenceStartTime = null;
+        let detectionInterval = null;
+        let lastLogTime = 0;
+
+        // Play greeting audio on page load and start continuous listening
+        window.onload = async function() {
+            if (!greetingPlayed) {
+                await playGreeting();
+                greetingPlayed = true;
+            }
+            setTimeout(() => {
+                startContinuousListening();
+            }, 2000);
+        };
+
+        async function playGreeting() {
+            try {
+                const response = await fetch('/generate_audio', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        text: "Hello! I'm your Q&A assistant for the to-do list app. Ask me anything about how to use the app, and I'll help you!"
+                    })
+                });
+                
+                if (response.ok) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
+                    await audio.play();
+                }
+            } catch (error) {
+                console.error('Error playing greeting:', error);
+            }
+        }
+
+        async function startContinuousListening() {
+            try {
+                recordingStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    } 
+                });
+                
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                analyser.smoothingTimeConstant = 0.3;
+                
+                microphone = audioContext.createMediaStreamSource(recordingStream);
+                microphone.connect(analyser);
+                
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                updateStatus('listening', '🎤 Listening... Speak your question when ready.');
+                logDetection('listening', 0);
+                startVoiceDetection();
+                
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                updateStatus('error', '❌ Error accessing microphone. Please check permissions.');
+                alert('Error accessing microphone. Please check permissions and reload the page.');
+            }
+        }
+
+        function startVoiceDetection() {
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+            }
+            
+            detectionInterval = setInterval(() => {
+                if (!isProcessing) {
+                    detectVoice();
+                }
+            }, DETECTION_INTERVAL);
+        }
+
+        function detectVoice() {
+            if (!analyser || isProcessing) {
+                return;
+            }
+            
+            analyser.getByteFrequencyData(dataArray);
+            
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            const averageVolume = sum / dataArray.length;
+            
+            const now = Date.now();
+            if (now - lastLogTime >= LOG_INTERVAL) {
+                logDetection('checking', averageVolume);
+                lastLogTime = now;
+            }
+            
+            if (!speechDetected && averageVolume > SPEECH_THRESHOLD) {
+                speechDetected = true;
+                silenceStartTime = null;
+                startRecording();
+                updateStatus('recording', '🔴 Recording... I can hear you speaking.');
+                logDetection('speech_detected', averageVolume);
+            }
+            else if (speechDetected && averageVolume < SPEECH_THRESHOLD) {
+                if (silenceStartTime === null) {
+                    silenceStartTime = Date.now();
+                    logDetection('silence_detected', averageVolume);
+                } else {
+                    const silenceDuration = Date.now() - silenceStartTime;
+                    if (silenceDuration > SILENCE_DURATION) {
+                        speechDetected = false;
+                        stopRecordingAndProcess();
+                    }
+                }
+            }
+            else if (speechDetected && averageVolume >= SPEECH_THRESHOLD) {
+                silenceStartTime = null;
+            }
+        }
+
+        function startRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                return;
+            }
+            
+            audioChunks = [];
+            
+            mediaRecorder = new MediaRecorder(recordingStream, {
+                mimeType: 'audio/webm;codecs=opus'
+            });
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+            
+            mediaRecorder.start(50);
+            isRecording = true;
+        }
+
+        async function stopRecordingAndProcess() {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                return;
+            }
+            
+            isProcessing = true;
+            updateStatus('processing', '⏳ Processing your question...');
+            logDetection('processing', 0);
+            
+            mediaRecorder.stop();
+            
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+                await processAudio(audioBlob);
+                
+                audioChunks = [];
+                speechDetected = false;
+                silenceStartTime = null;
+                isProcessing = false;
+                
+                setTimeout(() => {
+                    updateStatus('listening', '🎤 Listening... Speak your question when ready.');
+                    logDetection('listening', 0);
+                }, 500);
+            };
+        }
+
+        function updateStatus(type, message) {
+            const statusDiv = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            statusDiv.className = 'status ' + type;
+            statusText.textContent = message;
+        }
+
+        async function logDetection(status, volume) {
+            try {
+                await fetch('/log_detection', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ status: status, volume: volume })
+                });
+            } catch (error) {
+                // Silently fail
+            }
+        }
+
+        async function processAudio(audioBlob) {
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.wav');
+
+                const transcribeResponse = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!transcribeResponse.ok) {
+                    throw new Error('Transcription failed');
+                }
+
+                const transcribeData = await transcribeResponse.json();
+                const question = transcribeData.transcription;
+                
+                if (!question || question.trim().length === 0) {
+                    updateStatus('listening', '🎤 Listening... (No speech detected, try again)');
+                    return;
+                }
+                
+                document.getElementById('transcription').textContent = question;
+                updateStatus('processing', '⏳ Checking relevancy and finding answer...');
+
+                const responseResponse = await fetch('/get_response', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ question: question })
+                });
+
+                if (!responseResponse.ok) {
+                    throw new Error('Response generation failed');
+                }
+
+                const responseData = await responseResponse.json();
+                const botResponse = responseData.response;
+                
+                document.getElementById('response').textContent = botResponse;
+
+                updateStatus('processing', '⏳ Generating audio response...');
+                const audioResponse = await fetch('/generate_audio', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text: botResponse })
+                });
+
+                if (audioResponse.ok) {
+                    const audioBlob = await audioResponse.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audioElement = document.getElementById('responseAudio');
+                    audioElement.src = audioUrl;
+                    audioElement.style.display = 'block';
+                    
+                    audioElement.onended = () => {
+                        updateStatus('listening', '🎤 Listening... Speak your question when ready.');
+                        logDetection('listening', 0);
+                    };
+                    
+                    await audioElement.play();
+                }
+            } catch (error) {
+                console.error('Error processing audio:', error);
+                document.getElementById('transcription').textContent = 'Error processing your question. Please try again.';
+                document.getElementById('response').textContent = 'An error occurred. Please try again.';
+                updateStatus('listening', '🎤 Listening... (Error occurred, try again)');
+                isProcessing = false;
+            }
+        }
+    </script>
+</body>
+</html>
+
